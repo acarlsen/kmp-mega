@@ -41,6 +41,7 @@ import dev.whyoleg.cryptography.algorithms.AES
 import dev.whyoleg.cryptography.random.CryptographyRandom
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
@@ -63,7 +64,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.io.Sink
 import kotlinx.io.Source
@@ -86,6 +86,7 @@ class Mega(
     val requestTimeout: Duration = TIMEOUT,
     val connectionTimeout: Duration = TIMEOUT,
     val megaLogger: MegaLogger = MegaLogger(),
+    val userAgent: String = "kmp-mega",
 ) {
     // Sequence number
     private var sn: Long = 0
@@ -105,6 +106,9 @@ class Mega(
     // HTTP Client
     internal var httpClient: HttpClient = HttpClient {
         expectSuccess = false
+        install(UserAgent) {
+            agent = userAgent
+        }
         install(HttpTimeout) {
             requestTimeoutMillis = requestTimeout.inWholeMilliseconds
             connectTimeoutMillis = connectionTimeout.inWholeMilliseconds
@@ -116,7 +120,17 @@ class Mega(
                     println("HTTP Client: $message")
                 }
             }
-            level = LogLevel.BODY
+            level = when (megaLogger.minLogLevel) {
+                MegaLogLevel.VERBOSE -> {
+                    LogLevel.BODY
+                }
+                MegaLogLevel.DEBUG -> {
+                    LogLevel.HEADERS
+                }
+                else -> {
+                    LogLevel.INFO
+                }
+            }
         }
         install(ContentNegotiation) {
             json(Json {
