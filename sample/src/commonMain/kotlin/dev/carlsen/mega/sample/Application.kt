@@ -167,6 +167,7 @@ fun MegaClientUi(
 }
 
 @Composable
+@OptIn(kotlin.time.ExperimentalTime::class)
 fun FileListItem(
     node: Node,
     onClick: (Node) -> Unit,

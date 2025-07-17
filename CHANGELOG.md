@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.0.0-beta03 *(2024-07-17)*
+
+- Update dependencies
+
 ## 1.0.0-beta02 *(2024-04-05)*
 
 - Set configurable user-agent string

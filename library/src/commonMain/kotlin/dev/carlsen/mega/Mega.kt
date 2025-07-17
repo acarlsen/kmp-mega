@@ -64,7 +64,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.datetime.Instant
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
@@ -743,6 +742,7 @@ class Mega(
         ssn = filesResponse[0].sn
     }
 
+    @OptIn(kotlin.time.ExperimentalTime::class)
     private suspend fun addFSNode(itm: FSNode): Node? {
         var compKey: IntArray? = null
         var key: IntArray? = null
@@ -855,9 +855,9 @@ class Mega(
                 node = Node(
                     nodeType = itm.type,
                     size = itm.fileSize ?: 0,
-                    timestamp = Instant.fromEpochSeconds(itm.ts)
+                    timestamp = kotlin.time.Instant.fromEpochSeconds(itm.ts)
                 )
-                fileSystem.lookup[itm.handle] = node!!
+                fileSystem.lookup[itm.handle] = node
             }
 
             // Handle parent node
@@ -1070,6 +1070,7 @@ class Mega(
         }
     }
 
+    @OptIn(kotlin.time.ExperimentalTime::class)
     private suspend fun processUpdateNode(evRaw: JsonElement) {
         try {
             val event = Json.decodeFromJsonElement<FSEvent>(evRaw)
@@ -1083,7 +1084,7 @@ class Mega(
             }
 
             node.name = attr.name
-            node.timestamp = Instant.fromEpochSeconds(event.ts ?: 0)
+            node.timestamp = kotlin.time.Instant.fromEpochSeconds(event.ts ?: 0)
         } catch (e: Exception) {
             if (e is MegaException) throw e
             throw MegaException("Failed to process update node event: ${e.message}")

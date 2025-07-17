@@ -1,27 +1,27 @@
 [versions]
-agp = "8.9.1"
+agp = "8.11.1"
 android-compileSdk = "35"
 android-minSdk = "24"
 android-targetSdk = "35"
 
 androidx-activityCompose = "1.10.1"
-androidx-appcompat = "1.7.0"
-androidx-core-ktx = "1.15.0"
+androidx-appcompat = "1.7.1"
+androidx-core-ktx = "1.16.0"
 
-kotlin = "2.1.10"
-jetbrains-compose = "1.7.3"
-jetbrains-lifecycleViewmodelCompose = "2.8.4"
+kotlin = "2.2.0"
+jetbrains-compose = "1.8.2"
+jetbrains-lifecycleViewmodelCompose = "2.9.1"
 
-kotlinx-coroutines = "1.10.1"
-kotlinxDatetime = "0.6.2"
-kotlinxIoCore = "0.7.0"
-kotlinxSerializationJson = "1.8.0"
+kotlinx-coroutines = "1.10.2"
+kotlinxDatetime = "0.7.1"
+kotlinxIoCore = "0.8.0"
+kotlinxSerializationJson = "1.9.0"
 
 bignum = "0.3.10"
-cryptographyCore = "0.4.0"
-ktor = "3.1.1"
+cryptographyCore = "0.5.0"
+ktor = "3.2.2"
 statelyConcurrency = "2.1.0"
-maven-publish = "0.31.0"
+maven-publish = "0.34.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }

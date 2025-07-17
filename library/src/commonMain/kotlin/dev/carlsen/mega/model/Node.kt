@@ -1,10 +1,9 @@
 package dev.carlsen.mega.model
 
-import kotlinx.datetime.Instant
-
 /**
  * Filesystem node
  */
+@OptIn(kotlin.time.ExperimentalTime::class)
 class Node(
     var name: String = "",
     var hash: String = "",
@@ -12,7 +11,7 @@ class Node(
     private val children: MutableList<Node> = mutableListOf(),
     var nodeType: Int = 0,
     var size: Long = 0,
-    var timestamp: Instant = Instant.fromEpochMilliseconds(0),
+    var timestamp: kotlin.time.Instant = kotlin.time.Instant.fromEpochMilliseconds(0),
     var meta: NodeMeta = NodeMeta(),
 ) {
     fun getChildren(): List<Node> = children

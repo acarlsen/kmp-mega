@@ -42,6 +42,7 @@ kotlin {
             dependencies {
                 implementation(project(":library"))
 
+                implementation(compose.materialIconsExtended)
                 implementation(compose.material3)
                 implementation(compose.runtime)
                 implementation(libs.kotlinx.datetime)
