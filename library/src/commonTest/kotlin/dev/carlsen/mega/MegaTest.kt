@@ -7,7 +7,6 @@ import dev.carlsen.mega.util.ProgressCountingSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.Clock
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
@@ -16,6 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.ExperimentalTime
 
 class MegaTest {
 
@@ -195,13 +195,14 @@ class MegaTest {
         mega.logout()
     }
 
+    @OptIn(ExperimentalTime::class)
     @Test
-    fun `test - upload file and delete it`() = runBlocking {
+    fun  `test - upload file and delete it`() = runBlocking {
         mega.login(megaUserName, megaPassword)
         val fs = mega.getFileSystem()
         val rootChildren = mega.getChildren(fs.root!!)
         val testFolder = rootChildren.firstOrNull { it.name == testFolderName && it.nodeType == NodeType.FOLDER }
-        val fileUploadName = "testFile${Clock.System.now().toEpochMilliseconds()}.jpg"
+        val fileUploadName = "testFile${kotlin.time.Clock.System.now().toEpochMilliseconds()}.jpg"
 
         val file = Path("src/commonTest/resources/test.jpg")
         val uploadResultNode = SystemFileSystem.source(file).use { fileInputSource ->
