@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.0.0-beta04 *(2024-10-12)*
+
+- Support for hashcash challenge in API requests
+
 ## 1.0.0-beta03 *(2024-07-17)*
 
 - Update dependencies

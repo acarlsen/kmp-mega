@@ -35,6 +35,7 @@ import dev.carlsen.mega.transfer.ChunkSize
 import dev.carlsen.mega.transfer.Download
 import dev.carlsen.mega.transfer.Upload
 import dev.carlsen.mega.util.CancellationToken
+import dev.carlsen.mega.util.Hashcash
 import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.DelicateCryptographyApi
 import dev.whyoleg.cryptography.algorithms.AES
@@ -47,6 +48,7 @@ import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
+import io.ktor.client.request.headers
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -661,9 +663,50 @@ class Mega(
                             sleepTime = (sleepTime.inWholeMilliseconds * 2).coerceAtMost(maxSleepTime.inWholeMilliseconds).toDuration(DurationUnit.MILLISECONDS)
                         }
 
-                        val response: HttpResponse = httpClient.post(url) {
+                        var response: HttpResponse = httpClient.post(url) {
                             contentType(ContentType.Application.Json)
                             setBody(json)
+                        }
+
+                        // Handle 402 Payment Required status with hashcash challenge
+                        if (response.status.value == 402) {
+                            sleepTime = minSleepTime
+                            val hashCashHeader = response.headers["X-Hashcash"]
+                            if (hashCashHeader.isNullOrEmpty()) {
+                                continue
+                            }
+
+                            // Parse hashcash header
+                            val hashcash = Hashcash.parse(hashCashHeader)
+                            if (hashcash == null) {
+                                continue
+                            }
+
+                            // Generate hashcash response
+                            val token = hashcash.second
+                            val cashValue = try {
+                                Hashcash.solve(token, hashcash.first, 300000 )
+                            } catch (e: Exception) {
+                                megaLogger.d("Failed to solve hashcash challenge: ${e.message}")
+                                continue
+                            }
+
+                            if (cashValue.isNullOrEmpty()) {
+                                megaLogger.d("Failed to solve hashcash challenge: no solution found")
+                                continue
+                            }
+
+                            // Create a new request with the hashcash header
+                            response = httpClient.post(url) {
+                                contentType(ContentType.Application.Json)
+                                setBody(json)
+                                headers {
+                                    append("X-Hashcash", "1:$token:$cashValue")
+                                }
+                            }
+                            if (response.status.value == 402) {
+                                continue
+                            }
                         }
 
                         // Check status code
@@ -683,11 +726,11 @@ class Mega(
                                 errorMsg.firstOrNull()?.let { err ->
                                     MegaError.parseError(err)?.let { throw it }
                                 }
-                            } catch (e: SerializationException) {
+                            } catch (_: SerializationException) {
                                 try {
                                     val errorMsg = Json.decodeFromString<ErrorMsg>(responseBody)
                                     MegaError.parseError(errorMsg)?.let { throw it }
-                                } catch (e2: SerializationException) {
+                                } catch (_: SerializationException) {
                                     // do nothing
                                 }
                             }
@@ -733,7 +776,7 @@ class Mega(
         for (itm in filesResponse[0].f) {
             try {
                 addFSNode(itm)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 megaLogger.d("Couldn't decode FSNode: $itm")
                 continue
             }
@@ -772,7 +815,7 @@ class Mega(
                     itemUser == itm.user -> {
                         val buf = try {
                             MegaUtils.base64urlDecode(itemKey)
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             throw MegaException("Failed to decode key")
                         }
 
@@ -789,7 +832,7 @@ class Mega(
                         // https://github.com/meganz/sdk/blob/master/src/megaclient.cpp#L10089
                         val buf = try {
                             MegaUtils.base64urlDecode(itemKey)
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             throw MegaException("Failed to decode shared key")
                         }
 
@@ -863,14 +906,14 @@ class Mega(
             // Handle parent node
             parent = fileSystem.lookup[itm.parent]
             if (parent != null) {
-                parent!!.removeChild(node!!)
-                parent!!.addChild(node!!)
+                parent.removeChild(node)
+                parent.addChild(node)
             } else if (itm.parent.isNotEmpty()) {
                 parent = Node(
-                    children = mutableListOf(node!!),
+                    children = mutableListOf(node),
                     nodeType = NodeType.FOLDER
                 )
-                fileSystem.lookup[itm.parent] = parent!!
+                fileSystem.lookup[itm.parent] = parent
             }
 
             // Handle node metadata based on type
@@ -881,14 +924,14 @@ class Mega(
                     meta.iv = MegaUtils.a32ToBytes(intArrayOf(compKey!![4], compKey[5], 0, 0))
                     meta.mac = MegaUtils.a32ToBytes(intArrayOf(compKey[6], compKey[7]))
                     meta.compkey = MegaUtils.a32ToBytes(compKey)
-                    node!!.meta = meta
+                    node.meta = meta
                 }
 
                 NodeType.FOLDER -> {
                     val meta = NodeMeta()
                     meta.key = MegaUtils.a32ToBytes(key!!)
                     meta.compkey = MegaUtils.a32ToBytes(compKey!!)
-                    node!!.meta = meta
+                    node.meta = meta
                 }
 
                 NodeType.ROOT -> {
@@ -909,14 +952,14 @@ class Mega(
 
             // Handle shared directories
             if (itm.sharingUser?.isNotEmpty() == true) {
-                fileSystem.sroots.add(node!!)
+                fileSystem.sroots.add(node)
             }
 
             // Set final node properties
-            node!!.name = attr.name
-            node!!.hash = itm.handle
-            node!!.parent = parent
-            node!!.nodeType = itm.type
+            node.name = attr.name
+            node.hash = itm.handle
+            node.parent = parent
+            node.nodeType = itm.type
 
             return node
         }
@@ -994,7 +1037,7 @@ class Mega(
                                 megaLogger.e("pollEvents: Event from server was error: ${parsedError.message}")
                             }
                             continue
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             // Not an error message, continue processing
                         }
 
@@ -1045,7 +1088,7 @@ class Mega(
                         } else if (err != null) {
                             megaLogger.e("pollEvents: Error received from server: ${err.message}")
                         }
-                    } catch (e2: Exception) {
+                    } catch (_: Exception) {
                         megaLogger.e("pollEvents: Bad response received from server: $buf")
                         err = MegaException("Bad response from server", e.cause)
                     }
@@ -1079,7 +1122,7 @@ class Mega(
 
             val attr = try {
                 MegaUtils.decryptAttr(node.meta.key, event.attr)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 FileAttr(name = "BAD ATTRIBUTE")
             }
 

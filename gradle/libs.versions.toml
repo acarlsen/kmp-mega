@@ -1,16 +1,16 @@
 [versions]
-agp = "8.11.1"
+agp = "8.13.0"
 android-compileSdk = "35"
 android-minSdk = "24"
 android-targetSdk = "35"
 
-androidx-activityCompose = "1.10.1"
+androidx-activityCompose = "1.11.0"
 androidx-appcompat = "1.7.1"
-androidx-core-ktx = "1.16.0"
+androidx-core-ktx = "1.17.0"
 
-kotlin = "2.2.0"
-jetbrains-compose = "1.8.2"
-jetbrains-lifecycleViewmodelCompose = "2.9.1"
+kotlin = "2.2.20"
+jetbrains-compose = "1.9.0"
+jetbrains-lifecycleViewmodelCompose = "2.9.4"
 
 kotlinx-coroutines = "1.10.2"
 kotlinxDatetime = "0.7.1"
@@ -19,7 +19,8 @@ kotlinxSerializationJson = "1.9.0"
 
 bignum = "0.3.10"
 cryptographyCore = "0.5.0"
-ktor = "3.2.2"
+ktor = "3.3.1"
+okio = "3.16.1"
 statelyConcurrency = "2.1.0"
 maven-publish = "0.34.0"
 
@@ -37,6 +38,7 @@ kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.re
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 
 bignum = { module = "com.ionspin.kotlin:bignum", version.ref = "bignum" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 touchlab-stately = { group = "co.touchlab", name = "stately-concurrency", version.ref = "statelyConcurrency" }
 cryptography-core = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptographyCore" }
 cryptography-provider-apple = { module = "dev.whyoleg.cryptography:cryptography-provider-apple", version.ref = "cryptographyCore" }

@@ -42,12 +42,14 @@ kotlin {
                 implementation(libs.cryptography.core)
                 implementation(libs.bignum)
                 implementation(libs.touchlab.stately)
+                implementation(libs.okio)
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.okio)
             }
         }
 
