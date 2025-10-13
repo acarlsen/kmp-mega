@@ -25,6 +25,11 @@ class Download(
     private val chunkMacs: MutableList<ByteArray?> = MutableList(chunks.size) { null },
 ) {
     private val mutex = Mutex()
+    
+    // Cache cipher objects - create once, reuse for all chunks
+    private val ctrCipher by lazy { MegaUtils.getAesCTRCipher(src.meta.key) }
+    private val cbcCipher by lazy { MegaUtils.getAesCBCCipher(src.meta.key) }
+
 
     /**
      * Get number of chunks in the download
@@ -34,12 +39,12 @@ class Download(
     /**
      * Get the position and size of a chunk
      */
-    private suspend fun chunkLocation(id: Int): Pair<Long, Int> = mutex.withLock {
+    private fun chunkLocation(id: Int): Pair<Long, Int> {
         if (id < 0 || id >= chunks.size) {
             throw MegaException("Invalid chunk ID")
         }
 
-        Pair(chunks[id].position, chunks[id].size)
+        return Pair(chunks[id].position, chunks[id].size)
     }
 
     /**
@@ -89,16 +94,14 @@ class Download(
             throw MegaException("Wrong size for downloaded chunk")
         }
 
-        // Decrypt the block
-        val ctrCipher = MegaUtils.getAesCTRCipher(src.meta.key)
+        // Decrypt the block using cached cipher
         val ctrIv = MegaUtils.bytesToA32(src.meta.iv)
         ctrIv[2] = (chkStart / 0x1000000000).toInt()
         ctrIv[3] = (chkStart / 0x10).toInt()
         val bctrIv = MegaUtils.a32ToBytes(ctrIv)
         val decryptedChunk = ctrCipher.decryptWithIvBlocking(bctrIv, chunk)
 
-        // Update chunk macs
-        val enc = MegaUtils.getAesCBCCipher(src.meta.key)
+        // Update chunk macs using cached cipher
         val t = MegaUtils.bytesToA32(src.meta.iv)
         val iv = MegaUtils.a32ToBytes(intArrayOf(t[0], t[1], t[0], t[1]))
 
@@ -107,7 +110,7 @@ class Download(
 
         for (i in paddedChunk.indices step 16) {
             val newBlock = paddedChunk.copyOfRange(i, i + 16)
-            val encryptedBlock = enc.encryptWithIvBlocking(block, newBlock)
+            val encryptedBlock = cbcCipher.encryptWithIvBlocking(block, newBlock)
             block = encryptedBlock
         }
 
@@ -131,11 +134,11 @@ class Download(
             return@withLock true
         }
 
-        val cipher = MegaUtils.getAesCBCCipher(src.meta.key)
+        // Use cached cipher for final MAC verification
         // An all-zero IV for MAC calculations
         var block = ByteArray(16)
         for (chunkMac in chunkMacs.filterNotNull()) {
-            val encryptedBlock = cipher.encryptWithIvBlocking(block, chunkMac)
+            val encryptedBlock = cbcCipher.encryptWithIvBlocking(block, chunkMac)
             block = encryptedBlock
         }
 

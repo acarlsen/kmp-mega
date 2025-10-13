@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dev.carlsen.mega"
-version = "1.0.0-beta01"
+version = "1.0.0-beta05"
 
 kotlin {
     jvm()

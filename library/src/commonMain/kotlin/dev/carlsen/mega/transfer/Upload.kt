@@ -35,6 +35,11 @@ class Upload(
     var completionHandle: ByteArray,
 ) {
     private val mutex = Mutex()
+    
+    // Cache cipher objects - create once, reuse for all chunks
+    private val ctrCipher by lazy { MegaUtils.getAesCTRCipher(kbytes) }
+    private val cbcCipher by lazy { MegaUtils.getAesCBCCipher(kbytes) }
+    private val masterCipher by lazy { MegaUtils.getAesCBCCipher(masterKey) }
 
     /**
      * Returns the number of chunks in the upload.
@@ -68,11 +73,7 @@ class Upload(
         ctrIv[3] = (chkStart / 0x10).toInt()
         val bctrIv = MegaUtils.a32ToBytes(ctrIv)
 
-        // Create encryption ciphers
-        val ctrCipher = MegaUtils.getAesCTRCipher(kbytes) // bctrIv is used in ctrCipher
-        val cbcCipher = MegaUtils.getAesCBCCipher(kbytes) // iv is used in cbcCipher
-
-        // Create MAC for this chunk
+        // Create MAC for this chunk using cached cipher
         var block = iv
         val paddedChunk = MegaUtils.paddnull(chunk, 16)
         for (i in paddedChunk.indices step 16) {
@@ -81,7 +82,7 @@ class Upload(
             block = encryptedBlock
         }
 
-        // Encrypt the chunk with CTR mode
+        // Encrypt the chunk with CTR mode using cached cipher
         val encryptedChunk = ctrCipher.encryptWithIvBlocking(bctrIv, chunk)
 
         // Prepare upload URL
@@ -142,11 +143,10 @@ class Upload(
      */
     @OptIn(DelicateCryptographyApi::class)
     suspend fun finish(): FSNode {
-        // Calculate MAC for all chunks
-        val macEncCipher = MegaUtils.getAesCBCCipher(kbytes)
+        // Calculate MAC for all chunks using cached cipher
         var macData = ByteArray(16)
         for (chunkMac in chunkMacs) {
-            val encryptedBlock = macEncCipher.encryptWithIvBlocking(macData, chunkMac)
+            val encryptedBlock = cbcCipher.encryptWithIvBlocking(macData, chunkMac)
             macData = encryptedBlock
         }
 
@@ -168,16 +168,15 @@ class Upload(
         // Convert key to bytes
         val buf = MegaUtils.a32ToBytes(key)
 
-        // Encrypt the key with master key
+        // Encrypt the key with master key using cached cipher
         val zeroIv = ByteArray(16)
-        val masterAes = MegaUtils.getAesCBCCipher(masterKey)
 
         // Encrypt first part of the key
-        val firstPart = masterAes.encryptWithIvBlocking(zeroIv, buf.copyOfRange(0, 16))
+        val firstPart = masterCipher.encryptWithIvBlocking(zeroIv, buf.copyOfRange(0, 16))
         firstPart.copyInto(buf, 0, 0, 16)
 
         // Encrypt second part of the key
-        val secondPart = masterAes.encryptWithIvBlocking(zeroIv, buf.copyOfRange(16, 32))
+        val secondPart = masterCipher.encryptWithIvBlocking(zeroIv, buf.copyOfRange(16, 32))
         secondPart.copyInto(buf, 16, 0, 16)
 
         // Prepare completion message

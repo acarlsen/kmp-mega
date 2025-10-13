@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.0.0-beta05 *(2024-10-13)*
+
+- Improve download/upload speed by cryptographic optimizations
+
 ## 1.0.0-beta04 *(2024-10-12)*
 
 - Support for hashcash challenge in API requests

@@ -1015,6 +1015,7 @@ class Mega(
                             httpClient.get(events.w)
                         } catch (e: Exception) {
                             // Just log and continue - not critical
+                            delay(2000)
                             megaLogger.d("pollEvents: Error fetching wait URL: ${e.message}")
                         }
 
