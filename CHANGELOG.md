@@ -1,6 +1,6 @@
 # Change Log
 
-## 1.0.0-beta05 *(2025-11-06)*
+## 1.0.0-beta06 *(2025-11-06)*
 
 - Set socket timeout
 

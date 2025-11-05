@@ -49,7 +49,7 @@ repositories {
 Put in your dependencies block:
 
 ```kotlin
-implementation("dev.carlsen.mega:mega:1.0.0-beta04")
+implementation("dev.carlsen.mega:mega:1.0.0-beta06")
 ```
 
 ## How to use
