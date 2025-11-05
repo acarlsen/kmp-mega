@@ -113,6 +113,7 @@ class Mega(
         install(HttpTimeout) {
             requestTimeoutMillis = requestTimeout.inWholeMilliseconds
             connectTimeoutMillis = connectionTimeout.inWholeMilliseconds
+            socketTimeoutMillis = requestTimeout.inWholeMilliseconds
         }
         install(Logging) {
             logger = object : Logger {
@@ -677,10 +678,7 @@ class Mega(
                             }
 
                             // Parse hashcash header
-                            val hashcash = Hashcash.parse(hashCashHeader)
-                            if (hashcash == null) {
-                                continue
-                            }
+                            val hashcash = Hashcash.parse(hashCashHeader) ?: continue
 
                             // Generate hashcash response
                             val token = hashcash.second
@@ -973,12 +971,12 @@ class Mega(
             try {
                 if (err != null) {
                     megaLogger.d("pollEvents: error from server: ${err.message}")
-                    delay(sleepTime)
                     sleepTime = (sleepTime.inWholeMilliseconds * 2).coerceAtMost(maxSleepTime.inWholeMilliseconds).milliseconds
                 } else {
                     // reset sleep time to minimum on success
                     sleepTime = minSleepTime
                 }
+                delay(sleepTime)
 
                 val url = "${baseUrl}/sc?sn=$ssn&sid=$sessionId"
 
