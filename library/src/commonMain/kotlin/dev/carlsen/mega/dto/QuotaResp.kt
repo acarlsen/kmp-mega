@@ -10,9 +10,9 @@ import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 @JsonIgnoreUnknownKeys
 data class QuotaResp(
     // Mstrg is total capacity in bytes
-    @SerialName("mstrg") val spaceUsedBytes: ULong,
+    @SerialName("mstrg") val spaceCapacityBytes: ULong,
     // Cstrg is used capacity in bytes
-    @SerialName("cstrg") val spaceCapacityBytes: ULong,
+    @SerialName("cstrg") val spaceUsedBytes: ULong,
     // Per folder usage in bytes?
     @SerialName("cstrgn") val cstrgn: Map<String, List<Long>>,
 )
