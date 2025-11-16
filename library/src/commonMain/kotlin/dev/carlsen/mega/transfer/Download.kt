@@ -107,10 +107,12 @@ class Download(
 
         val paddedChunk = MegaUtils.paddnull(decryptedChunk, 16)
         var block = iv
+        val blockBuffer = ByteArray(16)  // Reused buffer
 
         for (i in paddedChunk.indices step 16) {
-            val newBlock = paddedChunk.copyOfRange(i, i + 16)
-            val encryptedBlock = cbcCipher.encryptWithIvBlocking(block, newBlock)
+            // Copy into reused buffer instead of allocating new array
+            paddedChunk.copyInto(blockBuffer, 0, i, minOf(i + 16, paddedChunk.size))
+            val encryptedBlock = cbcCipher.encryptWithIvBlocking(block, blockBuffer)
             block = encryptedBlock
         }
 

@@ -62,6 +62,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -81,6 +84,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
+/**
+ * Progress callback for file transfers.
+ * @param bytesTransferred Number of bytes transferred so far
+ * @param totalBytes Total number of bytes to transfer
+ */
+typealias TransferProgressCallback = (bytesTransferred: Long, totalBytes: Long) -> Unit
+
 class Mega(
     val baseUrl: String = API_URL,
     val retries: Int = RETRIES,
@@ -88,6 +98,7 @@ class Mega(
     val connectionTimeout: Duration = TIMEOUT,
     val megaLogger: MegaLogger = MegaLogger(),
     val userAgent: String = "kmp-mega",
+    val maxConcurrentChunks: Int = 4,
 ) {
     // Sequence number
     private var sn: Long = 0
@@ -556,23 +567,54 @@ class Mega(
      * @param src Source node to download
      * @param fileOutputSink Sink to write file to
      * @param cancellationToken Cancellation token to cancel the download
+     * @param onProgress Optional progress callback (bytesTransferred, totalBytes)
      * @throws MegaException If the download process fails.
      */
-    suspend fun downloadFile(src: Node, fileOutputSink: Sink, cancellationToken: CancellationToken) {
+    suspend fun downloadFile(
+        src: Node, 
+        fileOutputSink: Sink, 
+        cancellationToken: CancellationToken,
+        onProgress: TransferProgressCallback? = null
+    ) {
         try {
             val download = newDownload(src)
-            for (id in 0 until download.chunks()) {
-                // Check cancellation before each chunk
-                cancellationToken.throwIfCancellationRequested()
-
-                val chunk = download.downloadChunk(id)
-
-                // Check cancellation before writing each chunk
-                cancellationToken.throwIfCancellationRequested()
-
-                fileOutputSink.write(chunk)
-
+            val totalChunks = download.chunks()
+            val totalBytes = src.size
+            var bytesTransferred = 0L
+            
+            if (totalChunks == 0) {
+                download.finish()
+                onProgress?.invoke(0, totalBytes)
+                return
             }
+            
+            // Process chunks in batches for parallel downloading
+            val chunkIds = (0 until totalChunks).toList()
+            
+            chunkIds.chunked(maxConcurrentChunks).forEach { batch ->
+                // Check cancellation before processing batch
+                cancellationToken.throwIfCancellationRequested()
+                
+                // Download chunks in parallel on IO dispatcher
+                val downloadedChunks = coroutineScope {
+                    batch.map { id ->
+                        async(Dispatchers.IO) {
+                            download.downloadChunk(id)
+                        }
+                    }.awaitAll()
+                }
+                
+                // Write chunks in order and report progress
+                downloadedChunks.forEach { chunk ->
+                    // Check cancellation before writing
+                    cancellationToken.throwIfCancellationRequested()
+                    
+                    fileOutputSink.write(chunk)
+                    bytesTransferred += chunk.size
+                    onProgress?.invoke(bytesTransferred, totalBytes)
+                }
+            }
+            
             download.finish()
         } catch (e: Exception) {
             throw when (e) {
@@ -594,6 +636,7 @@ class Mega(
      * @param fileSize The size of the file to be uploaded.
      * @param fileInputSource The source from which the file data will be read.
      * @param cancellationToken The cancellation token to cancel the upload.
+     * @param onProgress Optional progress callback (bytesTransferred, totalBytes)
      * @return The uploaded Node.
      * @throws MegaException If the upload process fails.
      */
@@ -603,6 +646,7 @@ class Mega(
         fileSize: Long,
         fileInputSource: Source,
         cancellationToken: CancellationToken,
+        onProgress: TransferProgressCallback? = null
     ): Node {
         if (name.isEmpty()) throw MegaException("File name cannot be empty")
         if (fileSize < 0) throw MegaException("File size must be greater than or equal to 0")
@@ -610,21 +654,47 @@ class Mega(
 
         try {
             val upload = newUpload(destNode, name, fileSize)
-            for (id in 0 until upload.chunks()) {
-                // Check cancellation before each chunk
-                cancellationToken.throwIfCancellationRequested()
-
-                val (_, chunkSize) = upload.chunkLocation(id)
-
-                // Read chunk from file
-                val chunk = fileInputSource.readByteArray(chunkSize)
-
-                // Check cancellation before uploading chunk
-                cancellationToken.throwIfCancellationRequested()
-
-                // Upload chunk
-                upload.uploadChunk(id, chunk)
+            val totalChunks = upload.chunks()
+            var bytesTransferred = 0L
+            
+            if (totalChunks == 0) {
+                val fsNode = upload.finish()
+                val node = addFSNode(fsNode)
+                onProgress?.invoke(0, fileSize)
+                return node ?: throw MegaException("Failed to add node to filesystem")
             }
+            
+            // Process chunks in batches: read → encrypt → upload (pipelined)
+            val chunkIds = (0 until totalChunks).toList()
+            val readMutex = Mutex()  // Source is not thread-safe
+            
+            chunkIds.chunked(maxConcurrentChunks).forEach { batch ->
+                cancellationToken.throwIfCancellationRequested()
+                
+                // Read, encrypt, and upload in parallel pipeline
+                val uploadedSizes = coroutineScope {
+                    batch.map { id ->
+                        async(Dispatchers.IO) {
+                            // Read chunk (synchronized access to Source)
+                            val (_, chunkSize) = upload.chunkLocation(id)
+                            val chunk = readMutex.withLock {
+                                fileInputSource.readByteArray(chunkSize)
+                            }
+                            
+                            // Encrypt and upload (happens in parallel across chunks)
+                            upload.uploadChunk(id, chunk)
+                            chunk.size.toLong()
+                        }
+                    }.awaitAll()
+                }
+                
+                // Report progress after batch completes
+                uploadedSizes.forEach { size ->
+                    bytesTransferred += size
+                    onProgress?.invoke(bytesTransferred, fileSize)
+                }
+            }
+            
             val fsNode = upload.finish()
             val node = addFSNode(fsNode)
             return node ?: throw MegaException("Failed to add node to filesystem")
@@ -1200,7 +1270,7 @@ class Mega(
             ssl = 2,
         )
 
-        // Send request to get download URL
+        // Send request to get upload URL
         val request = Json.encodeToString(arrayOf(uploadMsg))
         val result = apiRequest(request)
 

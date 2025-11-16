@@ -1,7 +1,7 @@
 # [kmp-mega](https://github.com/acarlsen/kmp-mega)
 ![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/acarlsen/kmp-mega/build.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/dev.carlsen.mega/mega)](https://central.sonatype.com/namespace/dev.carlsen.mega)
-[![Kotlin version](https://img.shields.io/badge/Kotlin-2.2.20-blueviolet?logo=kotlin&logoColor=white)](http://kotlinlang.org)
+[![Kotlin version](https://img.shields.io/badge/Kotlin-2.2.21-blueviolet?logo=kotlin&logoColor=white)](http://kotlinlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![badge][badge-jvm]
 ![badge][badge-android]
@@ -49,7 +49,7 @@ repositories {
 Put in your dependencies block:
 
 ```kotlin
-implementation("dev.carlsen.mega:mega:1.0.0-beta06")
+implementation("dev.carlsen.mega:mega:1.0.0-beta07")
 ```
 
 ## How to use

@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.0.0-beta07 *(2025-11-17)*
+
+- Speed improvements using parallel chunks transfers
+- Progress callback for upload/download
+
 ## 1.0.0-beta06 *(2025-11-06)*
 
 - Set socket timeout
