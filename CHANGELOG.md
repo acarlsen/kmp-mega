@@ -1,9 +1,13 @@
 # Change Log
 
-## 1.0.0-beta07 *(2025-11-17)*
+## 1.0.0-beta08 *(2025-11-20)*
 
 - Speed improvements using parallel chunks transfers
 - Progress callback for upload/download
+
+## 1.0.0-beta07 *(2025-11-07)*
+
+- Fix quota field name
 
 ## 1.0.0-beta06 *(2025-11-06)*
 
