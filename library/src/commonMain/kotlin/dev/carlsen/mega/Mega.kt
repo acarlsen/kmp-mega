@@ -640,6 +640,8 @@ class Mega(
      * @param fileInputSource The source from which the file data will be read.
      * @param cancellationToken The cancellation token to cancel the upload.
      * @param onProgress Optional progress callback (bytesTransferred, totalBytes)
+     * @param calculateFingerprint Whether to calculate the MEGA fingerprint and store it
+     * in the node's `c` attribute.
      * @return The uploaded Node.
      * @throws MegaException If the upload process fails.
      */
@@ -650,7 +652,8 @@ class Mega(
         fileModifiedTimeMs: Long,
         fileInputSource: Source,
         cancellationToken: CancellationToken,
-        onProgress: TransferProgressCallback? = null
+        onProgress: TransferProgressCallback? = null,
+        calculateFingerprint: Boolean = false
     ): Node {
         if (name.isEmpty()) throw MegaException("File name cannot be empty")
         if (fileSize < 0) throw MegaException("File size must be greater than or equal to 0")
@@ -662,10 +665,14 @@ class Mega(
             var bytesTransferred = 0L
             // The fingerprint covers the whole plaintext; it is built incrementally
             // as chunks stream by so the file never has to fit in memory.
-            val fingerprint = MegaFingerprint.Builder(fileSize, fileModifiedTimeMs / 1000)
+            val fingerprint = if (calculateFingerprint) {
+                MegaFingerprint.Builder(fileSize, fileModifiedTimeMs / 1000)
+            } else {
+                null
+            }
 
             if (totalChunks == 0) {
-                val fsNode = upload.finish(fingerprint.finish())
+                val fsNode = upload.finish(fingerprint?.finish())
                 val node = addFSNode(fsNode)
                 onProgress?.invoke(0, fileSize)
                 return node ?: throw MegaException("Failed to add node to filesystem")
@@ -683,7 +690,7 @@ class Mega(
                     batch.map { id ->
                         val (_, chunkSize) = upload.chunkLocation(id)
                         val chunk = fileInputSource.readByteArray(chunkSize)
-                        fingerprint.update(chunk)
+                        fingerprint?.update(chunk)
                         id to chunk
                     }
                 }
@@ -705,7 +712,7 @@ class Mega(
                 }
             }
             
-            val fsNode = upload.finish(fingerprint.finish())
+            val fsNode = upload.finish(fingerprint?.finish())
             val node = addFSNode(fsNode)
             return node ?: throw MegaException("Failed to add node to filesystem")
         } catch (e: Exception) {

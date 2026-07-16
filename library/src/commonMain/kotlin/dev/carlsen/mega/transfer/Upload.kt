@@ -146,10 +146,11 @@ class Upload(
     /**
      * Completes the upload and returns the created node
      *
-     * @param fingerprint the file's MEGA fingerprint, stored in the node's `c` attribute
+     * @param fingerprint the file's MEGA fingerprint, stored in the node's `c` attribute,
+     * or null to omit the attribute
      */
     @OptIn(DelicateCryptographyApi::class)
-    suspend fun finish(fingerprint: String): FSNode {
+    suspend fun finish(fingerprint: String? = null): FSNode {
         // Calculate MAC for all chunks using cached cipher
         var macData = ByteArray(16)
         for (chunkMac in chunkMacs) {
