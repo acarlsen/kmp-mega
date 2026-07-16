@@ -36,6 +36,7 @@ import dev.carlsen.mega.transfer.Download
 import dev.carlsen.mega.transfer.Upload
 import dev.carlsen.mega.util.CancellationToken
 import dev.carlsen.mega.util.Hashcash
+import dev.carlsen.mega.util.MegaFingerprint
 import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.DelicateCryptographyApi
 import dev.whyoleg.cryptography.algorithms.AES
@@ -69,6 +70,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.io.Sink
 import kotlinx.io.Source
 import kotlinx.io.readByteArray
@@ -634,9 +636,12 @@ class Mega(
      * @param destNode The destination node where the file will be uploaded.
      * @param name The name of the file to be uploaded.
      * @param fileSize The size of the file to be uploaded.
+     * @param fileModifiedTimeMs The last modified time of the file in milliseconds.
      * @param fileInputSource The source from which the file data will be read.
      * @param cancellationToken The cancellation token to cancel the upload.
      * @param onProgress Optional progress callback (bytesTransferred, totalBytes)
+     * @param calculateFingerprint Whether to calculate the MEGA fingerprint and store it
+     * in the node's `c` attribute.
      * @return The uploaded Node.
      * @throws MegaException If the upload process fails.
      */
@@ -644,9 +649,11 @@ class Mega(
         destNode: Node,
         name: String,
         fileSize: Long,
+        fileModifiedTimeMs: Long,
         fileInputSource: Source,
         cancellationToken: CancellationToken,
-        onProgress: TransferProgressCallback? = null
+        onProgress: TransferProgressCallback? = null,
+        calculateFingerprint: Boolean = false
     ): Node {
         if (name.isEmpty()) throw MegaException("File name cannot be empty")
         if (fileSize < 0) throw MegaException("File size must be greater than or equal to 0")
@@ -656,32 +663,42 @@ class Mega(
             val upload = newUpload(destNode, name, fileSize)
             val totalChunks = upload.chunks()
             var bytesTransferred = 0L
-            
+            // The fingerprint covers the whole plaintext; it is built incrementally
+            // as chunks stream by so the file never has to fit in memory.
+            val fingerprint = if (calculateFingerprint) {
+                MegaFingerprint.Builder(fileSize, fileModifiedTimeMs / 1000)
+            } else {
+                null
+            }
+
             if (totalChunks == 0) {
-                val fsNode = upload.finish()
+                val fsNode = upload.finish(fingerprint?.finish())
                 val node = addFSNode(fsNode)
                 onProgress?.invoke(0, fileSize)
                 return node ?: throw MegaException("Failed to add node to filesystem")
             }
-            
+
             // Process chunks in batches: read → encrypt → upload (pipelined)
             val chunkIds = (0 until totalChunks).toList()
-            val readMutex = Mutex()  // Source is not thread-safe
-            
+
             chunkIds.chunked(maxConcurrentChunks).forEach { batch ->
                 cancellationToken.throwIfCancellationRequested()
-                
-                // Read, encrypt, and upload in parallel pipeline
-                val uploadedSizes = coroutineScope {
+
+                // Read the batch in chunk order: the source is sequential and the
+                // fingerprint must see the bytes in file order.
+                val batchChunks = withContext(Dispatchers.IO) {
                     batch.map { id ->
+                        val (_, chunkSize) = upload.chunkLocation(id)
+                        val chunk = fileInputSource.readByteArray(chunkSize)
+                        fingerprint?.update(chunk)
+                        id to chunk
+                    }
+                }
+
+                // Encrypt and upload in parallel pipeline
+                val uploadedSizes = coroutineScope {
+                    batchChunks.map { (id, chunk) ->
                         async(Dispatchers.IO) {
-                            // Read chunk (synchronized access to Source)
-                            val (_, chunkSize) = upload.chunkLocation(id)
-                            val chunk = readMutex.withLock {
-                                fileInputSource.readByteArray(chunkSize)
-                            }
-                            
-                            // Encrypt and upload (happens in parallel across chunks)
                             upload.uploadChunk(id, chunk)
                             chunk.size.toLong()
                         }
@@ -695,7 +712,7 @@ class Mega(
                 }
             }
             
-            val fsNode = upload.finish()
+            val fsNode = upload.finish(fingerprint?.finish())
             val node = addFSNode(fsNode)
             return node ?: throw MegaException("Failed to add node to filesystem")
         } catch (e: Exception) {
@@ -1083,7 +1100,7 @@ class Mega(
                             httpClient.get(events.w)
                         } catch (e: Exception) {
                             // Just log and continue - not critical
-                            delay(2000)
+                            delay(2000.milliseconds)
                             megaLogger.d("pollEvents: Error fetching wait URL: ${e.message}")
                         }
 

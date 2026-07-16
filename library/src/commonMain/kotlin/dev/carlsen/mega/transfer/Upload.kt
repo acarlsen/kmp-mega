@@ -17,22 +17,23 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 class Upload(
     private val mega: Mega,
-    val parentHash: String,
-    val name: String,
-    val uploadUrl: String,
-    val iv: ByteArray,
-    val kiv: ByteArray,
-    val kbytes: ByteArray,
-    val masterKey: ByteArray,
-    val ukey: IntArray,
+    private val parentHash: String,
+    private val name: String,
+    private val uploadUrl: String,
+    private val iv: ByteArray,
+    private val kiv: ByteArray,
+    private val kbytes: ByteArray,
+    private val masterKey: ByteArray,
+    private val ukey: IntArray,
     val chunks: List<ChunkSize>,
-    val chunkMacs: Array<ByteArray>,
-    var completionHandle: ByteArray,
+    private val chunkMacs: Array<ByteArray>,
+    private var completionHandle: ByteArray,
 ) {
     private val mutex = Mutex()
     
@@ -118,7 +119,7 @@ class Upload(
                 lastError = e
             }
 
-            delay(sleepTime.inWholeMilliseconds)
+            delay(sleepTime.inWholeMilliseconds.milliseconds)
             sleepTime = (sleepTime.inWholeMilliseconds * 2)
                 .coerceAtMost(Mega.maxSleepTime.inWholeMilliseconds).toDuration(DurationUnit.MILLISECONDS)
         }
@@ -144,9 +145,12 @@ class Upload(
 
     /**
      * Completes the upload and returns the created node
+     *
+     * @param fingerprint the file's MEGA fingerprint, stored in the node's `c` attribute,
+     * or null to omit the attribute
      */
     @OptIn(DelicateCryptographyApi::class)
-    suspend fun finish(): FSNode {
+    suspend fun finish(fingerprint: String? = null): FSNode {
         // Calculate MAC for all chunks using cached cipher
         var macData = ByteArray(16)
         for (chunkMac in chunkMacs) {
@@ -159,7 +163,7 @@ class Upload(
         val metaMac = intArrayOf(t[0] xor t[1], t[2] xor t[3])
 
         // Encrypt file attributes
-        val attr = FileAttr(name)
+        val attr = FileAttr(name, fingerprint)
         val attrData = MegaUtils.encryptAttr(kbytes, attr)
 
         // Create encryption key

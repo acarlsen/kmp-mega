@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.0.0-beta09 *(2026-07-xx)*
+
+- Calculate file checksum (thanks tkarabela)
+
 ## 1.0.0-beta08 *(2025-11-20)*
 
 - Speed improvements using parallel chunks transfers
