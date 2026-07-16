@@ -10,4 +10,5 @@ import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 @JsonIgnoreUnknownKeys
 data class FileAttr(
     @SerialName("n") val name: String,
+    @SerialName("c") val fingerprint: String? = null,
 )
