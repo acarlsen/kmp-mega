@@ -4,14 +4,12 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
 }
 
 kotlin {
-    androidTarget()
-    jvm("desktop")
+    jvm()
 
     val macOsConfiguration: KotlinNativeTarget.() -> Unit = {
         binaries {
@@ -23,11 +21,9 @@ kotlin {
             }
         }
     }
-    macosX64(macOsConfiguration)
     macosArm64(macOsConfiguration)
 
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
@@ -38,52 +34,19 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation(project(":library"))
+        commonMain.dependencies {
+            implementation(project(":library"))
 
-                implementation(compose.materialIconsExtended)
-                implementation(compose.material3)
-                implementation(compose.runtime)
-                implementation(libs.kotlinx.datetime)
-                implementation(libs.jetbrains.lifecycle.viewmodel.compose)
-            }
+            implementation(libs.jetbrains.compose.material.icons.extended)
+            implementation(libs.jetbrains.compose.material3)
+            implementation(libs.jetbrains.compose.runtime)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.jetbrains.lifecycle.viewmodel.compose)
         }
 
-        val androidMain by getting {
-            dependencies {
-                implementation(compose.material3)
-                implementation(libs.androidx.activity.compose)
-                implementation(libs.androidx.appcompat)
-                implementation(libs.androidx.core.ktx)
-            }
+        jvmMain.dependencies {
+            implementation(compose.desktop.currentOs)
         }
-
-        val desktopMain by getting {
-            dependencies {
-                implementation(compose.desktop.currentOs)
-            }
-        }
-    }
-}
-
-android {
-    namespace = "dev.carlsen.mega.sample"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    defaultConfig {
-        applicationId = "dev.carlsen.mega.sample"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlin {
-        jvmToolchain(17)
     }
 }
 
@@ -114,11 +77,12 @@ compose.desktop.nativeApplication {
 
 afterEvaluate {
     val baseTask = "createDistributableNative"
-    listOf("debug", "release").forEach {
+    listOf("debug", "release").forEach { it ->
         val createAppTaskName = baseTask + it.capitalize() + "macosArm64".capitalize()
 
-        val createAppTask = tasks.findByName(createAppTaskName) as? AbstractNativeMacApplicationPackageTask?
-            ?: return@forEach
+        val createAppTask =
+            tasks.findByName(createAppTaskName) as? AbstractNativeMacApplicationPackageTask?
+                ?: return@forEach
 
         val destinationDir = createAppTask.destinationDir.get().asFile
         val packageName = createAppTask.packageName.get()
@@ -127,7 +91,10 @@ afterEvaluate {
             group = createAppTask.group
             dependsOn(createAppTaskName)
             doLast {
-                ProcessBuilder("open", destinationDir.absolutePath + "/" + packageName + ".app").start().waitFor()
+                ProcessBuilder(
+                    "open",
+                    destinationDir.absolutePath + "/" + packageName + ".app"
+                ).start().waitFor()
             }
         }
     }

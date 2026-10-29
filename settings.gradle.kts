@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 rootProject.name = "kmp-mega"
 include(":library")
 include(":sample")
+include(":sample-android")

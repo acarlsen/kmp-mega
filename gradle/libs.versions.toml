@@ -1,26 +1,28 @@
 [versions]
-agp = "8.13.1"
-android-compileSdk = "36"
-android-minSdk = "24"
-android-targetSdk = "36"
+agp = "9.5.0"
+android-compileSdk = "37"
+android-minSdk = "26"
+android-targetSdk = "37"
 
-androidx-activityCompose = "1.12.0"
-androidx-appcompat = "1.7.1"
-androidx-core-ktx = "1.17.0"
+androidx-activityCompose = "1.13.0"
+androidx-appcompat = "1.8.0"
+androidx-core-ktx = "1.19.1"
 
-kotlin = "2.4.10"
-jetbrains-compose = "1.9.3"
-jetbrains-lifecycleViewmodelCompose = "2.9.6"
+kotlin = "2.4.21"
+jetbrains-compose = "1.12.2"
+jetbrains-composeMaterialIcons = "1.7.3"
+jetbrains-composeMaterial3 = "1.12.0-alpha03"
+jetbrains-lifecycleViewmodelCompose = "2.11.0"
 
 kotlinx-coroutines = "1.11.0"
 kotlinxDatetime = "0.8.0"
 kotlinxIoCore = "0.9.1"
-kotlinxSerializationJson = "1.11.0"
+kotlinxSerializationJson = "1.12.0"
 
 bignum = "0.3.10"
 cryptographyCore = "0.5.0"
-ktor = "3.5.1"
-okio = "3.17.0"
+ktor = "3.6.0"
+okio = "3.18.2"
 statelyConcurrency = "2.1.0"
 maven-publish = "0.37.0"
 
@@ -28,6 +30,9 @@ maven-publish = "0.37.0"
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activityCompose" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidx-appcompat" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidx-core-ktx" }
+jetbrains-compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "jetbrains-composeMaterial3" }
+jetbrains-compose-material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "jetbrains-composeMaterialIcons" }
+jetbrains-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "jetbrains-compose" }
 jetbrains-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "jetbrains-lifecycleViewmodelCompose" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -52,7 +57,7 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
-androidLibrary = { id = "com.android.library", version.ref = "agp" }
+androidLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "jetbrains-compose" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }

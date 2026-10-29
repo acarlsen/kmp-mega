@@ -15,5 +15,5 @@ Run from Android Studio using iOS target configuration.
 
 ### Installing Android App
 ```shell
-./gradlew :sample:installDebug
+./gradlew :sample-android:installDebug
 ```

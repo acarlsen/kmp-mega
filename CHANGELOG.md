@@ -1,8 +1,9 @@
 # Change Log
 
-## 1.0.0-beta09 *(2026-07-xx)*
+## 1.0.0-beta09 *(2026-11-29)*
 
 - Calculate file checksum (thanks tkarabela)
+- Updated dependencies
 
 ## 1.0.0-beta08 *(2025-11-20)*
 
