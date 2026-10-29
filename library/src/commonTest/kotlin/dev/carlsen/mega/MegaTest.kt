@@ -15,6 +15,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.ExperimentalTime
 
 class MegaTest {
@@ -80,7 +82,7 @@ class MegaTest {
         mega.login(megaUserName, megaPassword)
         val fs = mega.getFileSystem()
         val nodeFolder = mega.createDir("testFolderToDelete", fs.root)
-        delay(1000)
+        delay(1000.milliseconds)
         mega.delete(nodeFolder, destroy = false)
         val testFolder = fs.trash?.getChildren()?.firstOrNull { it.name == "testFolderToDelete" && it.nodeType == NodeType.FOLDER }
         assertNotNull(testFolder)
@@ -97,7 +99,7 @@ class MegaTest {
         mega.rename(testFolderToRename, "unit-test-folder-renamed")
         val renamedFolder = mega.getChildren(testFolder).firstOrNull { it.name == "unit-test-folder-renamed" && it.nodeType == NodeType.FOLDER }
         assertNotNull(renamedFolder)
-        delay(1000)
+        delay(1000.milliseconds)
         mega.rename(renamedFolder, "unit-test-folder-rename")
         mega.logout()
     }
@@ -112,7 +114,7 @@ class MegaTest {
         mega.rename(testFile, "test-file-renamed.txt")
         val renamedFile = testFolder?.getChildren()?.firstOrNull { it.name == "test-file-renamed.txt" && it.nodeType == NodeType.FILE }
         assertNotNull(renamedFile)
-        delay(1000)
+        delay(1000.milliseconds)
         mega.rename(renamedFile, "test-file-rename.txt")
         mega.logout()
     }
@@ -184,7 +186,7 @@ class MegaTest {
                           e.cause?.message?.contains("cancelled", ignoreCase = true) == true
         }
 
-        // Assert that download was actually cancelled
+        // Assert that download was actually canceled
         assertTrue(cancellationToken.isCancellationRequested())
         assertTrue(wasCancelled)
 
@@ -202,7 +204,7 @@ class MegaTest {
         val fs = mega.getFileSystem()
         val rootChildren = mega.getChildren(fs.root!!)
         val testFolder = rootChildren.firstOrNull { it.name == testFolderName && it.nodeType == NodeType.FOLDER }
-        val fileUploadName = "testFile${kotlin.time.Clock.System.now().toEpochMilliseconds()}.jpg"
+        val fileUploadName = "testFile${Clock.System.now().toEpochMilliseconds()}.jpg"
 
         val file = Path("src/commonTest/resources/test.jpg")
         val uploadResultNode = SystemFileSystem.source(file).use { fileInputSource ->
@@ -210,6 +212,7 @@ class MegaTest {
                 destNode = testFolder!!,
                 name = fileUploadName,
                 fileSize = 2705239,
+                fileModifiedTimeMs = Clock.System.now().toEpochMilliseconds(),
                 fileInputSource = ProgressCountingSource(
                     delegate = fileInputSource,
                     totalBytes = 2705239,
@@ -220,11 +223,11 @@ class MegaTest {
                 cancellationToken = CancellationToken.default()
             )
         }
-        delay(1000)
+        delay(1000.milliseconds)
         val uploadedFile = mega.getChildren(testFolder!!).firstOrNull { it.name == fileUploadName && it.nodeType == NodeType.FILE }
         assertNotNull(uploadedFile)
         assertEquals(uploadResultNode.timestamp.toEpochMilliseconds(), uploadedFile.timestamp.toEpochMilliseconds())
-        delay(1000)
+        delay(1000.milliseconds)
         mega.delete(uploadedFile, destroy = true)
         mega.logout()
     }
